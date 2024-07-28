@@ -1,0 +1,51 @@
+#include "HX711.h"
+
+#define piston_off 18 // Пин для управления первым транзистором
+#define piston_on 5    // Пин для управления вторым транзистором
+#define LOADCELL_DOUT_PIN  19 // Пин DOUT модуля HX711
+#define LOADCELL_SCK_PIN   17 // Пин SCK модуля HX711
+
+// Объявление объекта HX711
+HX711 scale;
+
+// Пороговое значение для активации транзисторов
+const float k = 100.0; // Установите значение порога по вашему усмотрению
+
+void setup() {
+  Serial.begin(115200); 
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  scale.set_scale(2280.f); // Значение масштаба нужно установить исходя из ваших условий
+  scale.tare(); // Установить начальный вес в 0
+
+  pinMode(piston_off, OUTPUT); // Настройка пинов как выход
+  pinMode(piston_on, OUTPUT);
+}
+
+void loop() {
+  float weight = scale.get_units(1); // Получить вес (усредняя 1 значений)
+  //Serial.print("Вес: ");
+  Serial.print(weight, 1); 
+  //Serial.println(" g"); // Вывод массы в граммах
+
+  // Управление первым транзистором
+  if (weight > k) {
+    int pwmValue = map(weight, k, 500, 0, 255); // Измените 500 на максимальное значение, указывающее на ваш порог
+    pwmValue = constrain(pwmValue, 0, 255); // Ограничиваем значение
+    analogWrite(piston_off, pwmValue); // Запись ШИМ значения
+    
+  } else {
+    analogWrite(piston_off, 0); // Выключение транзистора
+  }
+
+  // Управление вторым транзистором, предположим, что направление действия отрицательное
+  if (weight < -k) {
+    int pwmValue = map(-weight, k, 500, 0, 255); // Также возможное максимальное значение
+    pwmValue = constrain(pwmValue, 0, 255); // Ограничиваем значение
+    analogWrite(piston_on, pwmValue); // Запись ШИМ значения
+    
+  } else {
+    analogWrite(piston_on, 0); // Выключение транзистора
+  }
+
+  delay(1); // Задержка между измерениями
+}
